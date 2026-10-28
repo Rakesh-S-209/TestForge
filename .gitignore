@@ -1,0 +1,58 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Distribution
+dist/
+build/
+*.egg-info/
+
+# pytest / coverage artefacts
+.pytest_cache/
+.coverage
+htmlcov/
+reports/test_report.html
+reports/test_results.json
+reports/coverage.json
+reports/coverage_html/
+reports/summary.json
+
+# SQLite databases
+*.db
+*.sqlite3
+
+# Environment files — never commit secrets
+.env
+.env.*
+!.env.example
+
+# Editor / OS
+.vscode/settings.json
+.idea/
+*.swp
+*.swo
+Thumbs.db
+.DS_Store
+
+# Temporary test output files
+out.txt
+out2.txt
+err.txt
+err2.txt
+cov_out.txt
+cov_err.txt
+gen_out.txt
+gen_err.txt
+pip_out.txt
+pip_err.txt
+coverage_out.txt
+coverage_err.txt
+test_output.txt

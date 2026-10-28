@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>TestForge — QA Test Results Dashboard</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <!-- ======== HEADER ======================================================= -->
+  <header class="header">
+    <div class="header-left">
+      <div class="logo">
+        <span class="logo-icon">⚙</span>
+        <span class="logo-text">TestForge</span>
+      </div>
+      <div class="project-meta">
+        <span id="project-env" class="meta-tag">TestForge Store API</span>
+        <span id="run-timestamp" class="meta-tag">—</span>
+      </div>
+    </div>
+    <div class="header-right">
+      <button class="btn-refresh" id="btn-refresh" onclick="loadData()">↻ Refresh</button>
+    </div>
+  </header>
+
+  <!-- ======== MAIN ========================================================= -->
+  <main class="main" id="main-content">
+
+    <!-- LOADING STATE -->
+    <div id="loading-state" class="state-container">
+      <div class="spinner"></div>
+      <p>Loading test results…</p>
+    </div>
+
+    <!-- ERROR STATE -->
+    <div id="error-state" class="state-container hidden">
+      <div class="state-icon">⚠</div>
+      <h2>No report data available</h2>
+      <p>Run the test suite to generate reports:</p>
+      <pre class="code-block">python scripts/run_tests.py</pre>
+      <p>Then regenerate the summary:</p>
+      <pre class="code-block">python reporting/generate_report.py</pre>
+    </div>
+
+    <!-- DASHBOARD (hidden until data loads) -->
+    <div id="dashboard" class="hidden">
+
+      <!-- ── KPI CARDS ─────────────────────────────────────────────────── -->
+      <section class="kpi-row" aria-label="Key metrics">
+
+        <article class="kpi-card" aria-label="Total tests">
+          <h3 class="kpi-label">Total Tests</h3>
+          <div class="kpi-body">
+            <span class="kpi-big" id="kpi-total">—</span>
+            <div class="donut-wrap">
+              <svg class="donut" viewBox="0 0 42 42" aria-hidden="true">
+                <circle class="donut-bg"   cx="21" cy="21" r="15.9155"/>
+                <circle class="donut-pass" cx="21" cy="21" r="15.9155" id="donut-pass"/>
+                <circle class="donut-fail" cx="21" cy="21" r="15.9155" id="donut-fail"/>
+                <circle class="donut-skip" cx="21" cy="21" r="15.9155" id="donut-skip"/>
+              </svg>
+            </div>
+          </div>
+          <div class="kpi-legend">
+            <span class="legend-dot pass"></span><span id="kpi-passed">—</span> Passed
+            <span class="legend-dot fail"></span><span id="kpi-failed">—</span> Failed
+            <span class="legend-dot skip"></span><span id="kpi-skipped">—</span> Skipped
+          </div>
+        </article>
+
+        <article class="kpi-card" aria-label="Test pass rate">
+          <h3 class="kpi-label">Test Pass Rate</h3>
+          <div class="kpi-body">
+            <span class="kpi-big" id="kpi-rate">—</span>
+            <span class="kpi-trend" id="kpi-trend">↑</span>
+          </div>
+          <div class="kpi-sub">of all executed tests</div>
+        </article>
+
+        <article class="kpi-card" aria-label="Code coverage">
+          <h3 class="kpi-label">Code Coverage</h3>
+          <div class="kpi-body">
+            <span class="kpi-big" id="kpi-coverage">—</span>
+          </div>
+          <div class="kpi-sub" id="kpi-coverage-scope">—</div>
+        </article>
+
+        <article class="kpi-card" aria-label="Execution time">
+          <h3 class="kpi-label">Execution Time</h3>
+          <div class="kpi-body">
+            <span class="kpi-big" id="kpi-duration">—</span>
+          </div>
+          <div class="kpi-sub">total test duration</div>
+        </article>
+
+      </section>
+
+      <!-- ── SUITE SUMMARY ─────────────────────────────────────────────── -->
+      <section class="card" aria-label="Test suite summary">
+        <div class="card-header">
+          <h2 class="card-title">Test Suite Summary</h2>
+        </div>
+        <div class="table-wrap">
+          <table class="data-table" aria-label="Test suites">
+            <thead>
+              <tr>
+                <th>Suite</th>
+                <th class="num">Total</th>
+                <th class="num">Passed</th>
+                <th class="num">Failed</th>
+                <th class="num">Skipped</th>
+                <th>Progress</th>
+                <th class="num">Duration</th>
+              </tr>
+            </thead>
+            <tbody id="suite-tbody"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- ── COVERAGE TABLE ────────────────────────────────────────────── -->
+      <section class="card" aria-label="Coverage by module">
+        <div class="card-header">
+          <h2 class="card-title">Coverage by Module</h2>
+        </div>
+        <div class="table-wrap">
+          <table class="data-table" aria-label="Coverage modules">
+            <thead>
+              <tr>
+                <th>Module</th>
+                <th class="num">Statements</th>
+                <th class="num">Missing</th>
+                <th class="num">Coverage</th>
+                <th>Bar</th>
+              </tr>
+            </thead>
+            <tbody id="coverage-tbody"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- ── FAILED TESTS ──────────────────────────────────────────────── -->
+      <section class="card" id="failed-section" aria-label="Failed tests">
+        <div class="card-header">
+          <h2 class="card-title">Failed Tests</h2>
+          <span class="badge-fail" id="failed-count-badge">0</span>
+        </div>
+        <div id="failed-empty" class="empty-state">
+          <span class="empty-icon">✓</span>
+          <p>No failing tests — all tests passed.</p>
+        </div>
+        <div class="table-wrap" id="failed-table-wrap">
+          <table class="data-table" id="failed-table" aria-label="Failed tests">
+            <thead>
+              <tr>
+                <th>Test ID</th>
+                <th>Name</th>
+                <th class="num">Duration</th>
+                <th>Suite</th>
+                <th>Message</th>
+              </tr>
+            </thead>
+            <tbody id="failed-tbody"></tbody>
+          </table>
+        </div>
+      </section>
+
+      <!-- ── ALL TESTS TABLE (collapsible) ─────────────────────────────── -->
+      <section class="card" aria-label="All tests">
+        <div class="card-header" style="cursor:pointer" onclick="toggleAllTests()">
+          <h2 class="card-title">All Tests <span id="all-tests-toggle" class="toggle-arrow">▶</span></h2>
+          <span class="badge-neutral" id="all-tests-count">0</span>
+        </div>
+        <div id="all-tests-content" class="hidden">
+          <div class="table-wrap">
+            <table class="data-table" aria-label="All test results">
+              <thead>
+                <tr>
+                  <th>Test</th>
+                  <th>Suite</th>
+                  <th class="num">Duration (s)</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody id="all-tests-tbody"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ── REPORT LINKS ──────────────────────────────────────────────── -->
+      <section class="card" aria-label="Report links">
+        <div class="card-header">
+          <h2 class="card-title">Reports &amp; Artefacts</h2>
+        </div>
+        <div class="report-links">
+          <a class="report-link" href="../reports/test_report.html" target="_blank">
+            <span class="report-link-icon">📋</span>
+            <div>
+              <strong>HTML Test Report</strong>
+              <p>Full pytest-html report with individual test details</p>
+            </div>
+          </a>
+          <a class="report-link" href="../reports/coverage_html/index.html" target="_blank">
+            <span class="report-link-icon">📊</span>
+            <div>
+              <strong>Coverage Report</strong>
+              <p>Line-by-line coverage for the application source</p>
+            </div>
+          </a>
+          <a class="report-link" href="../reports/test_results.json" target="_blank">
+            <span class="report-link-icon">{ }</span>
+            <div>
+              <strong>JSON Test Results</strong>
+              <p>Machine-readable test result data (pytest-json-report)</p>
+            </div>
+          </a>
+          <a class="report-link" href="../reports/summary.json" target="_blank">
+            <span class="report-link-icon">📝</span>
+            <div>
+              <strong>Dashboard Summary JSON</strong>
+              <p>Parsed summary consumed by this dashboard</p>
+            </div>
+          </a>
+        </div>
+      </section>
+
+    </div><!-- /#dashboard -->
+  </main>
+
+  <footer class="footer">
+    <p>TestForge — SDET Portfolio Project &nbsp;|&nbsp;
+      Data sourced from actual test execution &nbsp;|&nbsp;
+      <span id="footer-timestamp">—</span>
+    </p>
+  </footer>
+
+  <script src="app.js"></script>
+</body>
+</html>

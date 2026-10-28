@@ -1,0 +1,74 @@
+name: TestForge CI
+
+on:
+  push:
+    branches: ["main", "develop"]
+  pull_request:
+    branches: ["main", "develop"]
+
+jobs:
+  test:
+    name: Lint & Test (Python ${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.12", "3.13"]
+
+    steps:
+      # ── 1. Checkout ──────────────────────────────────────────────────────
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # ── 2. Set up Python ─────────────────────────────────────────────────
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python-version }}
+          cache: "pip"
+
+      # ── 3. Install dependencies ──────────────────────────────────────────
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+          pip install "pydantic[email]" greenlet pytest-json-report
+
+      # ── 4. Lint with Ruff ─────────────────────────────────────────────────
+      - name: Lint with Ruff
+        run: ruff check app/ tests/ reporting/ scripts/
+
+      # ── 5. Run tests with coverage ────────────────────────────────────────
+      - name: Run test suite
+        run: |
+          python -m pytest tests/ \
+            --tb=short \
+            -v \
+            --html=reports/test_report.html \
+            --self-contained-html \
+            --cov=app \
+            --cov-report=html:reports/coverage_html \
+            --cov-report=json:reports/coverage.json \
+            --cov-report=term \
+            --json-report \
+            --json-report-file=reports/test_results.json
+
+      # ── 6. Generate dashboard summary ─────────────────────────────────────
+      - name: Generate dashboard summary
+        run: python reporting/generate_report.py
+
+      # ── 7. Upload reports as CI artefacts ─────────────────────────────────
+      - name: Upload test reports
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: test-reports-py${{ matrix.python-version }}
+          path: |
+            reports/test_report.html
+            reports/test_results.json
+            reports/coverage.json
+            reports/summary.json
+            reports/coverage_html/
+          retention-days: 30
